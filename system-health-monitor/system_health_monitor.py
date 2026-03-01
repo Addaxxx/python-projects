@@ -71,7 +71,7 @@ def main():
     parser = argparse.ArgumentParser(
         prog='System Health Monitor',
         description='Monitors CPU, RAM, and Disk usage and logs alerts when thresholds are exceeded.',
-        epilog='Example usage: python system_health_monitor.py --cpu_threshold 75 --interval 30'
+        epilog='Example usage: python3 system_health_monitor.py --cpu_threshold 75 --interval 30'
     )
            
     parser.add_argument(
