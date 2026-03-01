@@ -2,7 +2,6 @@ import psutil
 import time
 import os
 import logging
-import sys
 import argparse
 
 def cpu_usage():
@@ -72,11 +71,11 @@ def main():
     parser = argparse.ArgumentParser(
         prog='System Health Monitor',
         description='Monitors CPU, RAM, and Disk usage and logs alerts when thresholds are exceeded.',
-        epilog='Example usage: python system_health_monitor.py 80 80 90 60 /path/to/logfile.log'
+        epilog='Example usage: python system_health_monitor.py --cpu_threshold 75 --interval 30'
     )
            
     parser.add_argument(
-        '--cpu_threshold', 
+        '-ct', '--cpu_threshold', 
         type=float, 
         default=80.0, 
         help='CPU usage threshold percentage (default: 80.0)'
