@@ -23,6 +23,8 @@ Thumbs.db
 
 # Log files
 *.log
+logs/
+!logs/.gitkeep
 
 # Distribution / packaging
 dist/
