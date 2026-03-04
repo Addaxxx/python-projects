@@ -38,18 +38,16 @@ def count_log_levels(lines):
 def filter_lines(lines, filter_level):
     log_levels = ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL', "UNKNOWN"]
     filtered_lines = []
-    if filter_level not in log_levels: # check condition
+    if filter_level not in log_levels:
         print(f"Invalid filter level: {filter_level}. "
-             f"Valid levels are: {', '.join(log_levels[:-1])}")
-        return 
-    else:         
-        for line in lines:        
-            words = line.split()    
+              f"Valid levels are: {', '.join(log_levels[:-1])}")
+        return
+    else:
+        for line in lines:
+            words = line.split()
             if filter_level in words:
-                filtered_lines.append(line)    
+                filtered_lines.append(line)
     return filtered_lines
-
-           
 
 
 def print_summary(log_counts, filter_level, filtered_lines):
@@ -93,11 +91,15 @@ def main():
 
     args = parser.parse_args()
 
-    
     lines = read_file(args.log_file)
+
+    if not lines:
+        print("No lines to process. Exiting.")
+        sys.exit()
+        
     counts = count_log_levels(lines)
     filtered_lines = filter_lines(lines, args.filter) if args.filter else lines
-    
+
     if filtered_lines is None:
         sys.exit()
     else:
