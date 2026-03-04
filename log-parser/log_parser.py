@@ -35,12 +35,15 @@ def count_log_levels(lines):
     return log_counts
 
 
-def print_summary(log_counts):
-    total_lines = sum(log_counts.values())
-    print(f"Total lines: {total_lines}")
-    for x in log_counts:
-        if log_counts[x] > 0:
-            print(f"{x}: {log_counts[x]}")
+def print_summary(log_counts, filter_level):
+        if filter_level:
+            print(f"Lines containing '{filter_level}': {log_counts.get(filter_level, 0)}")
+        else:
+            total_lines = sum(log_counts.values())
+            print(f"Total lines: {total_lines}")
+            for x in log_counts:
+               if log_counts[x] > 0:
+                    print(f"{x}: {log_counts[x]}")
 
 
 def main():
@@ -60,12 +63,18 @@ def main():
            type=str,
            help='Path to the log file to be parsed (default: log.txt)',
     )
+    
+    parser.add_argument(
+           '-f', '--filter',
+           type=str,
+           help='Optional filter to display only lines containing a specific log level (e.g., ERROR, WARNING)',
+    )
 
     args = parser.parse_args()
 
     lines = read_file(args.log_file)
     counts = count_log_levels(lines)
-    print_summary(counts)
+    print_summary(counts, args.filter)
 
 
 if __name__ == "__main__":
