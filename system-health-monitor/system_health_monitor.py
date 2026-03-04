@@ -59,40 +59,30 @@ def check_ram(ram_threshold):
         print(f"Unexpected error checking RAM: {e}")
 
 
+def check_single_disk(disk_threshold, disk_path):
+    try:
+        usage = disk_usage(disk_path)
+        status = check_threshold(usage, disk_threshold)
+        logging.info(f"Disk Usage for"
+                     f"{disk_path}: {usage}% - Status: {status}")
+        print(f"Disk Usage for {disk_path}:  {usage}% - Status: {status}")
+        if status == "ALERT":
+            logging.warning("Disk usage has exceeded the threshold!")
+    except psutil.Error:
+        logging.error(f"Failed to retrieve disk usage for {disk_path}.")
+        print(f"Error: Failed to retrieve disk usage for {disk_path}.")
+    except Exception as e:
+        logging.error(
+            f"Unexpected error checking disk usage for {disk_path}: {e}")
+        print(f"Unexpected error checking disk usage for {disk_path}: {e}")
+
+
 def check_disk(disk_threshold, disk_path, all_partitions):
     if all_partitions:
-        try:
-            for path in all_partitions:
-                usage = disk_usage(path.mountpoint)
-                status = check_threshold(usage, disk_threshold)
-                logging.info(f"Disk Usage for "
-                             f"{path.mountpoint}: {usage}% - Status: {status}")
-                print(f"Disk Usage for "
-                      f"{path.mountpoint}: {usage}% - Status: {status}")
-                if status == "ALERT":
-                    logging.warning("Disk usage has exceeded the threshold!")
-        except psutil.Error:
-            logging.error(f"Failed to retrieve disk usage for {path}.")
-            print(f"Error: Failed to retrieve disk usage for {path}.")
-        except Exception as e:
-            logging.error(
-                f"Unexpected error checking disk usage for {path}: {e}")
-            print(f"Unexpected error checking disk usage for {path}: {e}")
+        for path in all_partitions:
+            check_single_disk(disk_threshold, path.mountpoint)
     elif os.path.exists(disk_path):
-        try:
-            usage = disk_usage(disk_path)
-            status = check_threshold(usage, disk_threshold)
-            logging.info(f"Disk Usage: {usage}% - Status: {status}")
-            if status == "ALERT":
-                logging.warning("Disk usage has exceeded the threshold!")
-            print(f"Disk Usage: {usage}% - Status: {status}")
-        except psutil.Error:
-            logging.error(f"Failed to retrieve disk usage for {disk_path}.")
-            print(f"Error: Failed to retrieve disk usage for {disk_path}.")
-        except Exception as e:
-            logging.error(
-                f"Unexpected error checking disk usage for {disk_path}: {e}")
-            print(f"Unexpected error checking disk usage for {disk_path}: {e}")
+        check_single_disk(disk_threshold, disk_path)
     else:
         logging.error(f"Disk path {disk_path} does not exist.")
         print(f"Error: Disk path {disk_path} does not exist.")
@@ -171,7 +161,10 @@ def main():
     )
 
     logging.info("Starting System Health Monitor")
-    logging.info(f"Checking disk usage for {args.disk_path}")
+
+    if args.all_partitions:
+        logging.info("Monitoring all disk partitions")
+        print("Monitoring all disk partitions")
 
     all_partitions = check_all_partitions() if args.all_partitions else None
 
