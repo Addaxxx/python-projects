@@ -1,7 +1,6 @@
 import argparse
-import re
-import os
 import sys
+import os
 import logging
 
 
@@ -12,9 +11,11 @@ def read_file(log_file):
     except FileNotFoundError:
         logging.error(f"File not found: {log_file}")
         print(f"Error: File not found - {log_file}")
+        sys.exit()
     except Exception as e:
         logging.error(f"Unexpected error reading file: {e}")
         print(f"Unexpected error reading file: {e}")
+        sys.exit()
 
 
 def identify_log_level(line):
@@ -41,6 +42,8 @@ def filter_lines(lines, filter_level):
     if filter_level not in log_levels:
         print(f"Invalid filter level: {filter_level}. "
               f"Valid levels are: {', '.join(log_levels[:-1])}")
+        logging.error(f"Invalid filter level: {filter_level}. "
+                      f"Valid levels are: {', '.join(log_levels[:-1])}")
         return
     else:
         for line in lines:
@@ -91,12 +94,25 @@ def main():
 
     args = parser.parse_args()
 
+    log_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'logs')
+    os.makedirs(log_dir, exist_ok=True)
+
+    logging.basicConfig(
+        filename=os.path.join(log_dir, 'log_parser.log'),
+        level=logging.INFO,
+        format='%(asctime)s - %(levelname)s - %(message)s'
+    )
+
+    logging.info(f"Parsing logs from"
+                 f"{args.log_file} with filter: {args.filter}")
+
     lines = read_file(args.log_file)
 
     if not lines:
-        print("No lines to process. Exiting.")
+        print("No lines to process. File may be empty")
+        logging.error("No lines to process. File may be empty.")
         sys.exit()
-        
+
     counts = count_log_levels(lines)
     filtered_lines = filter_lines(lines, args.filter) if args.filter else lines
 
