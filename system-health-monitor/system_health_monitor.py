@@ -17,6 +17,10 @@ def disk_usage(disk_path):
     return psutil.disk_usage(disk_path).percent
 
 
+def check_all_partitions():
+    return psutil.disk_partitions()
+
+
 def check_threshold(value, threshold):
     if value > threshold:
         return "ALERT"
@@ -55,8 +59,26 @@ def check_ram(ram_threshold):
         print(f"Unexpected error checking RAM: {e}")
 
 
-def check_disk(disk_threshold, disk_path):
-    if os.path.exists(disk_path):
+def check_disk(disk_threshold, disk_path, all_partitions):
+    if all_partitions:
+        try:
+            for path in all_partitions:
+                usage = disk_usage(path.mountpoint)
+                status = check_threshold(usage, disk_threshold)
+                logging.info(f"Disk Usage for "
+                             f"{path.mountpoint}: {usage}% - Status: {status}")
+                print(f"Disk Usage for "
+                      f"{path.mountpoint}: {usage}% - Status: {status}")
+                if status == "ALERT":
+                    logging.warning("Disk usage has exceeded the threshold!")
+        except psutil.Error:
+            logging.error(f"Failed to retrieve disk usage for {path}.")
+            print(f"Error: Failed to retrieve disk usage for {path}.")
+        except Exception as e:
+            logging.error(
+                f"Unexpected error checking disk usage for {path}: {e}")
+            print(f"Unexpected error checking disk usage for {path}: {e}")
+    elif os.path.exists(disk_path):
         try:
             usage = disk_usage(disk_path)
             status = check_threshold(usage, disk_threshold)
@@ -131,6 +153,12 @@ def main():
         help='Log file path (default: system_health_monitor.log)'
     )
 
+    parser.add_argument(
+        '-ap', '--all_partitions',
+        action='store_true',
+        help='Check disk usage for all partitions (overrides --disk_path)'
+    )
+
     args = parser.parse_args()
 
     log_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'logs')
@@ -145,10 +173,12 @@ def main():
     logging.info("Starting System Health Monitor")
     logging.info(f"Checking disk usage for {args.disk_path}")
 
+    all_partitions = check_all_partitions() if args.all_partitions else None
+
     while True:
         check_cpu(args.cpu_threshold)
         check_ram(args.ram_threshold)
-        check_disk(args.disk_threshold, args.disk_path)
+        check_disk(args.disk_threshold, args.disk_path, all_partitions)
         time.sleep(args.interval)
 
 
