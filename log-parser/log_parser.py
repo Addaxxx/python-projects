@@ -35,15 +35,35 @@ def count_log_levels(lines):
     return log_counts
 
 
-def print_summary(log_counts, filter_level):
-        if filter_level:
-            print(f"Lines containing '{filter_level}': {log_counts.get(filter_level, 0)}")
-        else:
-            total_lines = sum(log_counts.values())
-            print(f"Total lines: {total_lines}")
-            for x in log_counts:
-               if log_counts[x] > 0:
-                    print(f"{x}: {log_counts[x]}")
+def filter_lines(lines, filter_level):
+    log_levels = ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL', "UNKNOWN"]
+    filtered_lines = []
+    if filter_level not in log_levels: # check condition
+        print(f"Invalid filter level: {filter_level}. "
+             f"Valid levels are: {', '.join(log_levels[:-1])}")
+        return 
+    else:         
+        for line in lines:        
+            words = line.split()    
+            if filter_level in words:
+                filtered_lines.append(line)    
+    return filtered_lines
+
+           
+
+
+def print_summary(log_counts, filter_level, filtered_lines):
+    if filter_level:
+        print(f"Lines containing"
+              f" '{filter_level}': {log_counts.get(filter_level, 0)}")
+        for line in filtered_lines:
+            print(line.strip())
+    else:
+        total_lines = sum(log_counts.values())
+        print(f"Total lines: {total_lines}")
+        for x in log_counts:
+            if log_counts[x] > 0:
+                print(f"{x}: {log_counts[x]}")
 
 
 def main():
@@ -63,18 +83,25 @@ def main():
            type=str,
            help='Path to the log file to be parsed (default: log.txt)',
     )
-    
+
     parser.add_argument(
            '-f', '--filter',
            type=str,
-           help='Optional filter to display only lines containing a specific log level (e.g., ERROR, WARNING)',
+           help='Optional filter to display only lines containing'
+           'a specific log level (e.g., ERROR, WARNING)',
     )
 
     args = parser.parse_args()
 
+    
     lines = read_file(args.log_file)
     counts = count_log_levels(lines)
-    print_summary(counts, args.filter)
+    filtered_lines = filter_lines(lines, args.filter) if args.filter else lines
+    
+    if filtered_lines is None:
+        sys.exit()
+    else:
+        print_summary(counts, args.filter, filtered_lines)
 
 
 if __name__ == "__main__":
