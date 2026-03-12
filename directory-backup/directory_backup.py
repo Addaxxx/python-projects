@@ -17,14 +17,15 @@ def create_tar_gz(source, destination, exclude):
     Args:
         source (str): Source directory to backup
         destination (str): Destination file path for the tar.gz archive
-        exclude (str):  Pattern to exclude files (e.g., *.log)
+        exclude (list):  Pattern to exclude files (e.g., *.log)
     """
     try:
         with tarfile.open(destination, 'w:gz') as tar:
             for root, dirs, files in os.walk(source):
                 for file in files:
                     file_path = os.path.join(root, file)
-                    if exclude and fnmatch.fnmatch(file, exclude):
+                    if exclude and any(fnmatch.fnmatch(file, pattern)
+                                       for pattern in exclude):
                         logging.warning(f"Excluding file: {file_path}")
                         continue
                     # arcname strips the absolute path so
@@ -48,14 +49,15 @@ def create_zip(source, destination, exclude):
     Args:
         source (str): Source directory to backup
         destination (str): Destination file path for the zip archive
-        exclude (str): Pattern to exclude files (e.g., *.log)
+        exclude (list): Pattern to exclude files (e.g., *.log)
     """
     try:
         with zipfile.ZipFile(destination, 'w') as zipf:
             for root, dirs, files in os.walk(source):
                 for file in files:
                     file_path = os.path.join(root, file)
-                    if exclude and fnmatch.fnmatch(file, exclude):
+                    if exclude and any(fnmatch.fnmatch(file, pattern)
+                                       for pattern in exclude):
                         logging.warning(f"Excluding file: {file_path}")
                         continue
                     # arcname strips the absolute path so archive
@@ -79,7 +81,7 @@ def backup_directory(source, destination, compression, exclude):
         source (str): Source directory to backup
         destination (str): Destination directory to save the backup
         compression (str): Compression format (tar.gz, zip, or none)
-        exclude (str): Pattern to exclude files (e.g., *.log)
+        exclude (list): Pattern to exclude files (e.g., *.log)
 
     Returns:
         str: Path to the backup directory or archive created
@@ -145,6 +147,7 @@ def main():
         type=str,
         help='Pattern to exclude files (e.g., *.log)',
         default=None,
+        nargs='*'
     )
 
     parser.add_argument(
