@@ -35,6 +35,13 @@ def scan_regions(regions, filters, writer):
 
         writer (csv.writer): A CSV writer object to write
         instance details to a CSV file.
+<<<<<<< Updated upstream
+=======
+
+    Returns:
+        int: The total number of EC2 instances
+        found across all scanned regions.
+>>>>>>> Stashed changes
     """
     try:
         # Iterate through each region and list EC2 instances
