@@ -13,18 +13,13 @@ def state_filter(state):
     Args:
         state (str): The desired state of
         the EC2 instances (e.g., 'running', 'stopped').
-
-    Returns:
-        list: A list of filters for EC2 instance state.
     """
-    filters = []
-
     if state:
-        filters.append({
-            "Name": "instance-state-name",
-            "Values": [state]
-        })
+        state_filter = {'Name': 'instance-state-name', 'Values': [state]}
+    else:
+        state_filter = None
 
+    filters = [state_filter] if state_filter else []
     return filters
 
 
@@ -40,78 +35,24 @@ def scan_regions(regions, filters, writer):
 
         writer (csv.writer): A CSV writer object to write
         instance details to a CSV file.
-        
-    Returns:
-    int: The total number of EC2 instances found across all scanned regions.
     """
-    total_instances = 0
-    for region_name in regions:
-        try:
+    try:
+        # Iterate through each region and list EC2 instances
+        for region_name in regions:
             logging.info(f"Listing EC2 instances in region: "
                          f"{region_name}")
             print(f"Listing EC2 instances in region: {region_name}")
-            regional_ec2_client = boto3.client('ec2', region_name=region_name)
-            # Use a paginator instead of describe_instances() directly —
-            # describe_instances caps at 1000 results per call
-            # without pagination.
-            paginator = regional_ec2_client.get_paginator("describe_instances")
-            for page in paginator.paginate(Filters=filters):
-                for reservation in page.get("Reservations", []):
-                    total_instances += len(reservation.get("Instances", []))
-                list_ec2_instances(page, region_name, writer)
-        except botocore.exceptions.ClientError as e:
-            # Some regions require explicit opt-in in the AWS console.
-            # Skip them rather than failing the entire scan.
-            if e.response['Error']['Code'] == 'AuthFailure':
-                logging.warning(f"Skipping {region_name} — auth failure.")
-                print(f"Skipping {region_name} — not authorized.")
-                continue
-            logging.error(f"ClientError in {region_name}: {e}")
-            print(f"ClientError in {region_name}: {e}")
-    return total_instances
+            regional_ec2_client = boto3.client(
+                                        'ec2', region_name=region_name)
+            response = regional_ec2_client.describe_instances(
+                                        Filters=filters)
+            list_ec2_instances(response, region_name, writer)
+    except botocore.exceptions.ClientError:
+        logging.error("AWS ClientError occurred while scanning regions.")
+        print("AWS ClientError occurred while scanning regions.")
 
 
-def list_ec2_instances(response, region_name, writer):
-    """
-    Process the response from describe_instances and print instance details.
-
-    Args:
-        response (dict): The response from the describe_instances API call
-        containing EC2 instance details.
-
-        region_name (str): The name of the AWS region being processed.
-
-        writer (csv.writer): A CSV writer object to write
-        instance details to a CSV file.
-        If None, instance details will not be written to a file.
-    """
-    try:
-        for reservation in response.get('Reservations', []):
-            for instance in reservation.get('Instances', []):
-                instance_id = instance.get('InstanceId', 'N/A')
-                instance_type = instance.get('InstanceType', 'N/A')
-                state = instance.get("State", {}).get("Name", "N/A")
-                ip_address = instance.get('PublicIpAddress', 'N/A')
-                if writer is not None:
-                    writer.writerow([region_name, instance_id,
-                                    instance_type, state, ip_address])
-                logging.info(f"Instance ID: {instance_id}, "
-                             f"Type: {instance_type}, "
-                             f"State: {state}, IP Address: {ip_address}")
-                print(f"Instance ID: {instance_id}, "
-                      f"Type: {instance_type}, "
-                      f"State: {state}, IP Address: {ip_address}")
-        if not response.get('Reservations', []):
-            logging.info(f"No EC2 instances found in region: {region_name}")
-            print(f"No EC2 instances found in region: {region_name}")
-        print()
-    except Exception as e:
-        logging.error(f"Unexpected error while "
-                      f"processing EC2 instance data: {e}")
-        print(f"Unexpected error while processing EC2 instance data: {e}")
-
-
-def list_instances_by_regions(region, state, tag, csv_file):
+def list_ec2_instances_by_regions(region, state, tag, csv_file):
     """
     List EC2 instances across specified
     regions with optional filters for state and tags.
@@ -131,55 +72,85 @@ def list_instances_by_regions(region, state, tag, csv_file):
         If None, instance details will not be saved to a file.
     """
     try:
-        session = boto3.session.Session()
+        # Create an EC2 client
+        ec2_client = boto3.client('ec2')
 
         if region:
             regions = [region]
         else:
-            # Use session.get_available_regions() instead of
-            # describe_regions() - avoids an extra API call and
-            # returns all known regions without needing credentials.
-            regions = session.get_available_regions("ec2")
+            # Retrieve the list of available regions
+            regions_response = ec2_client.describe_regions()
+            regions = [region_name['RegionName'] for region_name
+                       in regions_response['Regions']]
 
         filters = state_filter(state)
 
         if tag:
-            if '=' not in tag:
-                logging.error("Tag must be in format 'Key=Value'")
-                raise ValueError("Tag must be in format 'Key=Value'")
-            tag_key, tag_value = tag.split('=', 1)
+            tag_key, tag_value = tag.split('=')
             tag_filter = {'Name': f'tag:{tag_key}', 'Values': [tag_value]}
             filters.append(tag_filter)
+
         if csv_file:
             header = ['Region', 'Instance ID',
                       'Instance Type', 'State', 'IP Address']
             file_path = os.path.join(os.path.dirname(
                         os.path.abspath(__file__)), csv_file)
-            with open(file_path, mode='w', newline='') as csv_handle:
-                writer = csv.writer(csv_handle)
+            with open(file_path, mode='w', newline='') as csv_file:
+                writer = csv.writer(csv_file)
                 writer.writerow(header)
 
-                total_instances = scan_regions(regions, filters, writer)
+                scan_regions(regions, filters, writer)
 
             logging.info(f"CSV file created at: {file_path}")
-            print(f"CSV file created at: {file_path}")
-            logging.info(f"Found {total_instances} "
-                         f"instances matching the criteria.")
-            print(f"Found {total_instances} "
-                  f"instances matching the criteria.")
         else:
             writer = None
-            total_instances = scan_regions(regions, filters, writer)
-            logging.info(f"Found {total_instances} "
-                         f"instances matching the criteria.")
-            print(f"Found {total_instances} instances matching the criteria.")
-    except botocore.exceptions.ClientError as e:
-        logging.error(f"AWS ClientError occurred "
-                      f"while listing EC2 instances: {e}")
-        print(f"AWS ClientError occurred while listing EC2 instances: {e}")
+            scan_regions(regions, filters, writer)
+    except botocore.exceptions.ClientError:
+        logging.error("AWS ClientError occurred while listing EC2 instances.")
+        print("AWS ClientError occurred while listing EC2 instances.")
     except Exception as e:
         logging.error(f"Error listing EC2 instances: {e}")
         print(f"Error listing EC2 instances: {e}")
+
+
+def list_ec2_instances(response, region_name, writer):
+    """
+    Process the response from describe_instances and print instance details.
+
+    Args:
+        response (dict): The response from the describe_instances API call
+        containing EC2 instance details.
+
+        region_name (str): The name of the AWS region being processed.
+
+        writer (csv.writer): A CSV writer object to write
+        instance details to a CSV file.
+        If None, instance details will not be written to a file.
+    """
+    try:
+        for reservation in response['Reservations']:
+            for instance in reservation['Instances']:
+                instance_id = instance['InstanceId']
+                instance_type = instance['InstanceType']
+                state = instance['State']['Name']
+                ip_address = instance.get('PublicIpAddress', 'N/A')
+                if writer is not None:
+                    writer.writerow([region_name, instance_id,
+                                    instance_type, state, ip_address])
+                logging.info(f"Instance ID: {instance_id}, "
+                             f"Type: {instance_type}, "
+                             f"State: {state}, IP Address: {ip_address}")
+                print(f"Instance ID: {instance_id}, "
+                      f"Type: {instance_type}, "
+                      f"State: {state}, IP Address: {ip_address}")
+        if not response['Reservations']:
+            logging.info(f"No EC2 instances found in region: {region_name}")
+            print(f"No EC2 instances found in region: {region_name}")
+        print("\n")
+    except KeyError as e:
+        logging.error(f"KeyError occurred while "
+                      f"processing EC2 instance data: {e}")
+        print(f"KeyError occurred while processing EC2 instance data: {e}")
 
 
 def main():
@@ -244,8 +215,8 @@ def main():
     logging.info(f"Arguments: region={args.region}, state={args.state}, "
                  f"tag={args.tag}, csv_file={args.csv_file}")
 
-    list_instances_by_regions(args.region,
-                              args.state, args.tag, args.csv_file)
+    list_ec2_instances_by_regions(args.region,
+                                  args.state, args.tag, args.csv_file)
 
 
 if __name__ == "__main__":
