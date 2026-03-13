@@ -1,6 +1,8 @@
 from fastapi import FastAPI, HTTPException
 import uvicorn
 import psutil
+import logging
+import os
 
 
 def cpu_usage():
@@ -70,8 +72,10 @@ def metrics(disk_path='/'):
             'memory': ram_usage(),
             'disk': disk_usage(disk_path)
         }
+        logging.info(f"Fetched system metrics: {system_metrics}")
         return system_metrics
     except Exception as e:
+        logging.error(f"Error fetching system metrics: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -89,8 +93,10 @@ def metrics_cpu():
     """
     try:
         cpu = cpu_usage()
+        logging.info(f"Fetched CPU usage: {cpu}%")
         return cpu
     except Exception as e:
+        logging.error(f"Error fetching CPU usage: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -108,8 +114,10 @@ def metrics_memory():
     """
     try:
         memory = ram_usage()
+        logging.info(f"Fetched RAM usage: {memory}%")
         return memory
     except Exception as e:
+        logging.error(f"Error fetching RAM usage: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -127,10 +135,27 @@ def metrics_disk():
     """
     try:
         disk = disk_usage('/')
+        logging.info(f"Fetched disk usage for '/': {disk}%")
         return disk
     except Exception as e:
+        logging.error(f"Error fetching disk usage for '/': {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
-if __name__ == "__main__":
+def main():
+
+    # Build log path relative to the script, not the working directory.
+    log_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'logs')
+    os.makedirs(log_dir, exist_ok=True)
+
+    logging.basicConfig(
+        filename=os.path.join(log_dir, 'monitoring_api.log'),
+        level=logging.INFO,
+        format='%(asctime)s - %(levelname)s - %(message)s'
+    )
+
     uvicorn.run(app, host="0.0.0.0", port=8000)
+
+
+if __name__ == "__main__":
+    main()
