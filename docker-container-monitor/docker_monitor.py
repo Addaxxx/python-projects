@@ -11,7 +11,9 @@ def get_containers(client, container_name=None):
     Get list of containers
 
     Args:
-        client (docker.DockerClient): docker.DockerClient
+        client (docker.DockerClient): Docker client instance used
+        to interact with the Docker daemon.
+
         container_name (str): Name of the container. Defaults to None.
 
     Returns:
@@ -34,10 +36,10 @@ def get_container_stats(container):
     Get the stats of the container
 
     Args:
-        container (docker.models.containers.Container): A single container
+        container (docker.models.containers.Container): A single container.
 
     Returns:
-        tuple: A tuple contianing the calcualte percentage for cpu and memory
+        tuple: A tuple containing the calculated percentage for cpu and memory.
     """
     try:
         stats = container.stats(stream=False)
@@ -72,10 +74,14 @@ def monitor_containers(client, container_name,
     Monitor the containers
 
     Args:
-        client (docker.DockerClient): docker.DockerClient
-        container_name (str): Name of the container
-        cpu_threshold (float): User defined threshold for cpu
-        memory_threshold (float): User defined threshold for memory
+        client (docker.DockerClient): Docker client instance used to
+        interact with the Docker daemon.
+
+        container_name (str): Name of the container.
+
+        cpu_threshold (float): User defined threshold for cpu.
+
+        memory_threshold (float): User defined threshold for memory.
     """
     container_list = get_containers(client, container_name)
     for container in container_list:
@@ -83,13 +89,17 @@ def monitor_containers(client, container_name,
         if result is None:
             continue
         cpu_percent, memory_percent = result
+        image_tag = container.image.tags[0] if container.image.tags else 'N/A'
         logging.info(f"ID = {container.id[:12]}, Name = {container.name}, "
                      f"Status = {container.status}, "
                      f"CPU% = {round(cpu_percent, 2)}, "
-                     f"MEM% = {round(memory_percent, 2)}")
+                     f"MEM% = {round(memory_percent, 2)}, "
+                     f"Image = {image_tag}")
         print(f"ID = {container.id[:12]}, Name = {container.name}, "
               f"Status = {container.status}, "
-              f"CPU% = {cpu_percent}, MEM% = {memory_percent}")
+              f"CPU% = {round(cpu_percent, 2)}, "
+              f"MEM% = {round(memory_percent, 2)}, "
+              f"Image = {image_tag}")
         if cpu_percent > cpu_threshold:
             logging.warning("CPU usage has exceeded the threshold!")
             print("CPU usage has exceeded the threshold!")
@@ -171,10 +181,15 @@ def main():
         logging.error(f"Failed to connect to Docker: {e}")
         sys.exit(1)
 
-    while True:
-        monitor_containers(client, args.container,
-                           args.cpu_threshold, args.memory_threshold)
-        time.sleep(args.interval)
+    try:
+        while True:
+            monitor_containers(client, args.container,
+                               args.cpu_threshold, args.memory_threshold)
+            time.sleep(args.interval)
+    except KeyboardInterrupt:
+        logging.info("Docker Container Monitor stopped by user.")
+        print("Docker Container Monitor stopped.")
+        sys.exit(0)
 
 
 if __name__ == "__main__":
