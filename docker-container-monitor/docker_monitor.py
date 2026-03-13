@@ -83,10 +83,11 @@ def monitor_containers(client, container_name,
         if result is None:
             continue
         cpu_percent, memory_percent = result
-        logging.info(f"ID = {container.id}, Name = {container.name}, "
+        logging.info(f"ID = {container.id[:12]}, Name = {container.name}, "
                      f"Status = {container.status}, "
-                     f"CPU% = {cpu_percent}, MEM% = {memory_percent}")
-        print(f"ID = {container.id}, Name = {container.name}, "
+                     f"CPU% = {round(cpu_percent, 2)}, "
+                     f"MEM% = {round(memory_percent, 2)}")
+        print(f"ID = {container.id[:12]}, Name = {container.name}, "
               f"Status = {container.status}, "
               f"CPU% = {cpu_percent}, MEM% = {memory_percent}")
         if cpu_percent > cpu_threshold:
@@ -158,6 +159,11 @@ def main():
     )
 
     logging.info('Starting Docker Container Monitor')
+    logging.info(f"Arguments: log_file={args.log_file}, "
+                 f"interval={args.interval}, "
+                 f"cpu_threshold={args.cpu_threshold}, "
+                 f"memory_threshold={args.memory_threshold}, "
+                 f"container={args.container}")
 
     try:
         client = docker.from_env()
