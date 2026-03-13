@@ -44,13 +44,13 @@ def disk_usage(disk_path):
 
 def get_system_metrics(disk_path):
     """
-    Put system emtrics into a dictionary
+    Put system metrics into a dictionary
 
     Args:
         disk_path (str): Path to check disk usage
 
     Returns:
-        dict: A dictionary containing the 
+        dict: A dictionary containing the
         key:value pairs for system metrics
     """
     system_metrics = {
@@ -67,12 +67,12 @@ def push_metrics(cloudwatch_client, namespace, metrics):
     Push system metrics to AWS Cloudwatch
 
     Args:
-        cloudwatch_client (boto3.client): Cloudwatch client isntance used 
+        cloudwatch_client (boto3.client): Cloudwatch client instance used
         to connect to AWS cloudwatch.
-        
+
         namespace (str): AWS Namespace
-        
-        metrics (dict): A dictionary containing 
+
+        metrics (dict): A dictionary containing
         key:value pairs for system metrics
     """
     try:
@@ -163,9 +163,12 @@ def main():
                  f"namespace={args.namespace}, "
                  f"region={args.region}, "
                  f"disk_path={args.disk_path}")
+    print('Starting Cloudwatch Metrics Pusher')
+
+    region_name = args.region
 
     try:
-        cloudwatch_client = boto3.client('cloudwatch')
+        cloudwatch_client = boto3.client('cloudwatch', region_name=region_name)
     except botocore.exceptions.ClientError as e:
         logging.error(f"Failed to connect to Cloudwatch: {e}")
         sys.exit(1)
